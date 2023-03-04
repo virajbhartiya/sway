@@ -1,96 +1,56 @@
-# sway
+# sway (Qualification task of CCExtractor for GSoC 2023)
 
-**[English][en]** - [Česky][cs] - [Deutsch][de] - [Dansk][dk] - [Español][es] - [Français][fr] - [Ελληνικά][gr] - [हिन्दी][hi] - [Magyar][hu] - [فارسی][ir] - [Italiano][it] - [日本語][ja] - [한국어][ko] - [Nederlands][nl] - [Norsk][no] - [Polski][pl] - [Português][pt] - [Română][ro] - [Русский][ru] - [Svenska][sv] - [Türkçe][tr] - [Українська][uk] - [中文-简体][zh-CN] - [中文-繁體][zh-TW]
+## Changes made
 
-sway is an [i3]-compatible [Wayland] compositor. Read the [FAQ]. Join the
-[IRC channel] \(#sway on irc.libera.chat).
+Added the function `already_included()` which checks whether a given file path has already been included in the configuration file chain of a `sway_config` struct.
 
-## Release Signatures
+It does so by iterating through each file path in the config_chain array of the sway_config struct and comparing it to the provided path parameter using the strcmp function. If the path is found in the array, the function returns true, indicating that the file has already been included. If the path is not found in the array, the function returns false, indicating that the file has not yet been included.
 
-Releases are signed with [E88F5E48] and published [on GitHub][GitHub releases].
+```c
+bool already_included(struct sway_config *config, const char *path) {
+	for (int j = 0; j < config->config_chain->length; ++j) {
+		if (strcmp(path, config->config_chain->items[j]) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+```
 
-## Installation
+In the `load_include_configs()` function I've added the following code which iterates through each path in the array and if the path is include_one, it loads all files in the directory specified by the next path that have not already been included. If the path is not include_one, it loads the configuration file specified by the path.
 
-### From Packages
+The function keeps track of which files have already been included in the configuration by checking against a config struct pointer.
 
-Sway is available in many distributions. Try installing the "sway" package for
-yours.
+```c
+if (strcmp(w[i], "include_one") == 0) {
+  if (i + 1 < p.we_wordc) {
+    if (first_dir) {
+      load_include_config(w[i+1], parent_dir, config, swaynag);
+      first_dir = false;
+    } else {
+      DIR *dir = opendir(w[i+1]);
+      if (dir == NULL) {
+          sway_log(SWAY_ERROR, "Failed to open include_one directory");
+          continue;
+      }
+      struct dirent *ent;
+      while ((ent = readdir(dir)) != NULL) {
+          if (ent->d_type == DT_REG) {
+              char file_path[PATH_MAX];
+              snprintf(file_path, sizeof(file_path), "%s/%s", w[i+1], ent->d_name);
+              if (!already_included(config, file_path)) {
+                  load_include_config(file_path, parent_dir, config, swaynag);
+              }
+          }
+      }
+      closedir(dir);
+    }
+    i++;
+  } else {
+      sway_log(SWAY_ERROR, "include_one missing argument");
+  }
+}
 
-### Compiling from Source
+```
 
-Check out [this wiki page][Development setup] if you want to build the HEAD of
-sway and wlroots for testing or development.
-
-Install dependencies:
-
-* meson \*
-* [wlroots]
-* wayland
-* wayland-protocols \*
-* pcre2
-* json-c
-* pango
-* cairo
-* gdk-pixbuf2 (optional: system tray)
-* [scdoc] (optional: man pages) \*
-* git (optional: version info) \*
-
-_\* Compile-time dep_
-
-Run these commands:
-
-    meson build/
-    ninja -C build/
-    sudo ninja -C build/ install
-
-On systems without logind nor seatd, you need to suid the sway binary:
-
-    sudo chmod a+s /usr/local/bin/sway
-
-Sway will drop root permissions shortly after startup.
-
-## Configuration
-
-If you already use i3, then copy your i3 config to `~/.config/sway/config` and
-it'll work out of the box. Otherwise, copy the sample configuration file to
-`~/.config/sway/config`. It is usually located at `/etc/sway/config`.
-Run `man 5 sway` for information on the configuration.
-
-## Running
-
-Run `sway` from a TTY. Some display managers may work but are not supported by
-sway (gdm is known to work fairly well).
-
-[en]: https://github.com/swaywm/sway#readme
-[cs]: README.cs.md
-[de]: README.de.md
-[dk]: README.dk.md
-[es]: README.es.md
-[fr]: README.fr.md
-[gr]: README.gr.md
-[hi]: README.hi.md
-[hu]: README.hu.md
-[ir]: README.ir.md
-[it]: README.it.md
-[ja]: README.ja.md
-[ko]: README.ko.md
-[nl]: README.nl.md
-[no]: README.no.md
-[pl]: README.pl.md
-[pt]: README.pt.md
-[ro]: README.ro.md
-[ru]: README.ru.md
-[sv]: README.sv.md
-[tr]: README.tr.md
-[uk]: README.uk.md
-[zh-CN]: README.zh-CN.md
-[zh-TW]: README.zh-TW.md
-[i3]: https://i3wm.org/
-[Wayland]: http://wayland.freedesktop.org/
-[FAQ]: https://github.com/swaywm/sway/wiki
-[IRC channel]: https://web.libera.chat/gamja/?channels=#sway
-[E88F5E48]: https://keys.openpgp.org/search?q=34FF9526CFEF0E97A340E2E40FDE7BE0E88F5E48
-[GitHub releases]: https://github.com/swaywm/sway/releases
-[Development setup]: https://github.com/swaywm/sway/wiki/Development-Setup
-[wlroots]: https://gitlab.freedesktop.org/wlroots/wlroots
-[scdoc]: https://git.sr.ht/~sircmpwn/scdoc
+All the changes ave been made only in `sway/config.c` file.
