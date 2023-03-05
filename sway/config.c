@@ -690,7 +690,7 @@ void load_include_configs(const char *path, struct sway_config *config,
 				} else {
 					sway_log(SWAY_ERROR, "include_one missing argument");
 				}
-			} else {
+			} else if(strcmp(w[i], "include") == 0) {
 				load_include_config(w[i], parent_dir, config, swaynag);
 			}
 		}

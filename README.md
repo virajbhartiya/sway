@@ -15,7 +15,7 @@ bool already_included(struct sway_config *config, const char *path) {
 }
 ```
 
-In the `load_include_configs()` function, the code iterates through each path in the array and checks if it is equal to "include_one". If it is, the function loads all files in the directory specified by the next path that has not already been included. If the path is not "include_one", the function loads the configuration file specified by the path.
+In the `load_include_configs()` function, the code iterates through each path in the array and checks if it is equal to "include_one". If it is, the function loads all files in the directory specified by the next path that has not already been included. If the path is not "include_one", the function loads the configuration file specified by the path and also preserves the previous functionality of using just "include",
 
 To keep track of which files have already been included in the configuration, the function uses a config struct pointer to check whether a file has already been loaded before.
 
@@ -44,7 +44,7 @@ if (strcmp(w[i], "include_one") == 0) {
       closedir(dir);
     }
     i++;
-  } else {
+  } else if(strcmp(w[i], "include") == 0) {
       sway_log(SWAY_ERROR, "include_one missing argument");
   }
 }
