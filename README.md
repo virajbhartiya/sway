@@ -2,16 +2,17 @@
 
 ## Changes made
 
-Added the function `already_included()` checks whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function. If the provided path is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.
+Added the function `already_included()` checks whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function and `strcmp(basename(path), basename(old_path)) == 0` checks for the indivisual file name. If the provided path or the file name is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.
 
 ```c
 bool already_included(struct sway_config *config, const char *path) {
-	for (int j = 0; j < config->config_chain->length; ++j) {
-		if (strcmp(path, config->config_chain->items[j]) == 0) {
-			return true;
-		}
-	}
-	return false;
+    for (int j = 0; j < config->config_chain->length; ++j) {
+        char *old_path = config->config_chain->items[j];
+        if (strcmp(path, old_path) == 0 || strcmp(basename(path), basename(old_path)) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 ```
 

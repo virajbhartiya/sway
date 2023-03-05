@@ -707,12 +707,13 @@ cleanup:
 }
 
 bool already_included(struct sway_config *config, const char *path) {
-	for (int j = 0; j < config->config_chain->length; ++j) {
-		if (strcmp(path, config->config_chain->items[j]) == 0) {
-			return true;
-		}
-	}
-	return false;
+    for (int j = 0; j < config->config_chain->length; ++j) {
+        char *old_path = config->config_chain->items[j];
+        if (strcmp(path, old_path) == 0 || strcmp(basename(path), basename(old_path)) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void run_deferred_commands(void) {
