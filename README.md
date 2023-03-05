@@ -44,7 +44,7 @@ if (strcmp(w[i], "include_one") == 0) {
       closedir(dir);
     }
     i++;
-  } else if(strcmp(w[i], "include") == 0) {
+  } else {
       sway_log(SWAY_ERROR, "include_one missing argument");
   }
 }
