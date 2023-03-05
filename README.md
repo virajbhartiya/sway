@@ -2,9 +2,7 @@
 
 ## Changes made
 
-Added the function `already_included()` which checks whether a given file path has already been included in the configuration file chain of a `sway_config` struct.
-
-It does so by iterating through each file path in the config_chain array of the sway_config struct and comparing it to the provided path parameter using the strcmp function. If the path is found in the array, the function returns true, indicating that the file has already been included. If the path is not found in the array, the function returns false, indicating that the file has not yet been included.
+Added the function `already_included()` checks whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function. If the provided path is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.
 
 ```c
 bool already_included(struct sway_config *config, const char *path) {
@@ -17,9 +15,9 @@ bool already_included(struct sway_config *config, const char *path) {
 }
 ```
 
-In the `load_include_configs()` function I've added the following code which iterates through each path in the array and if the path is include_one, it loads all files in the directory specified by the next path that have not already been included. If the path is not include_one, it loads the configuration file specified by the path.
+In the `load_include_configs()` function, the code iterates through each path in the array and checks if it is equal to "include_one". If it is, the function loads all files in the directory specified by the next path that has not already been included. If the path is not "include_one", the function loads the configuration file specified by the path.
 
-The function keeps track of which files have already been included in the configuration by checking against a config struct pointer.
+To keep track of which files have already been included in the configuration, the function uses a config struct pointer to check whether a file has already been loaded before.
 
 ```c
 if (strcmp(w[i], "include_one") == 0) {
@@ -53,4 +51,4 @@ if (strcmp(w[i], "include_one") == 0) {
 
 ```
 
-All the changes ave been made only in `sway/config.c` file.
+All the changes have been made only in [`sway/config.c`](https://github.com/virajbhartiya/sway/blob/master/sway/config.c) file.
