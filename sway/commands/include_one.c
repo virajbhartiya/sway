@@ -1,14 +1,13 @@
 #include "sway/commands.h"
 #include "sway/config.h"
 
-struct cmd_results *cmd_include(int argc, char **argv) {
+struct cmd_results *cmd_include_one(int argc, char **argv) {
 	struct cmd_results *error = NULL;
-	int expected_argc;
-	char *expected_arg;
 
-	if ((error = checkarg(argc, "include", EXPECTED_EQUAL_TO, 1))) {
+	if ((error = checkarg(argc, "include_one", EXPECTED_AT_LEAST, 1))) {
 		return error;
 	} 
+
 
 	load_include_configs(argv[0], config, &config->swaynag_config_errors);
 	return cmd_results_new(CMD_SUCCESS, NULL);

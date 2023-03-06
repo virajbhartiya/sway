@@ -2,29 +2,22 @@
 
 ## Changes made
 
-Added a check for weather it is using `include` or `include_one` in the `sway/commands/include.c` so as the preserve the previously functionality while adding a new one.
+I've created a new file called `sway/commands/include_one.c` which handels the functonality of `include_one` command
 
 ```c
-struct cmd_results *cmd_include(int argc, char **argv) {
+
+struct cmd_results *cmd_include_one(int argc, char **argv) {
 	struct cmd_results *error = NULL;
-	int expected_argc;
-	char *expected_arg;
 
-	if (strcmp(cmd_name, "include") == 0) {
-		expected_argc = EXPECTED_EQUAL_TO;
-		expected_arg = "include";
-	} else if (strcmp(cmd_name, "include_one") == 0) {
-		expected_argc = EXPECTED_AT_LEAST;
-		expected_arg = "include_one";
-	}
-
-	if ((error = checkarg(argc, expected_arg, expected_argc, 1))) {
+	if ((error = checkarg(argc, "include_one", EXPECTED_AT_LEAST, 1))) {
 		return error;
 	}
+
 
 	load_include_configs(argv[0], config, &config->swaynag_config_errors);
 	return cmd_results_new(CMD_SUCCESS, NULL);
 }
+
 ```
 
 Added the function `already_included()` checks whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function and `strcmp(basename(path), basename(old_path)) == 0` checks for the indivisual file name. If the provided path or the file name is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.

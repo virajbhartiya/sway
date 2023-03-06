@@ -607,6 +607,11 @@ void load_include_configs(const char *path, struct sway_config *config,
 		struct swaynag_instance *swaynag);
 
 /**
+ * Check if the file has alreaady been included in the previous file path
+ */
+bool already_included(struct sway_config *config, const char *path);
+
+/**
  * Reads the config from the given FILE.
  */
 bool read_config(FILE *file, struct sway_config *config,
