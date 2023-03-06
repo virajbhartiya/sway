@@ -612,6 +612,17 @@ void load_include_configs(const char *path, struct sway_config *config,
 bool already_included(struct sway_config *config, const char *path);
 
 /**
+ * returns the file name
+ */
+char *extract_filename(const char *path)
+
+/**
+ * checks if the file name is same
+ */
+bool same_filename(const char *path1, const char *path2) {
+
+
+/**
  * Reads the config from the given FILE.
  */
 bool read_config(FILE *file, struct sway_config *config,

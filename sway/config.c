@@ -705,11 +705,26 @@ cleanup:
 bool already_included(struct sway_config *config, const char *path) {
     for (int j = 0; j < config->config_chain->length; ++j) {
         char *old_path = config->config_chain->items[j];
-        if (strcmp(path, old_path) == 0 || strcmp(basename(path), basename(old_path)) == 0) {
+        if (strcmp(path, old_path) == 0 ||  same_filename(path, old_path)) {
             return true;
         }
     }
     return false;
+}
+
+char *extract_filename(const char *path) {
+    const char *last_sep = strrchr(path, '/');
+    if (last_sep != NULL) {
+        return (char *)(last_sep + 1);
+    }
+    return (char *)path;
+}
+
+// Checks if two paths have the same filename.
+bool same_filename(const char *path1, const char *path2) {
+    const char *filename1 = extract_filename(path1);
+    const char *filename2 = extract_filename(path2);
+    return (strcmp(filename1, filename2) == 0);
 }
 
 void run_deferred_commands(void) {

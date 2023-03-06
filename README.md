@@ -20,17 +20,32 @@ struct cmd_results *cmd_include_one(int argc, char **argv) {
 
 ```
 
-Added the function `already_included()` checks whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function and `strcmp(basename(path), basename(old_path)) == 0` checks for the indivisual file name. If the provided path or the file name is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.
+Added the function `already_included()`, `extract_file_name()` and `same_filenme()` which check whether a file with a given path has already been included in the configuration file chain of a `sway_config` struct. It does this by looping through each file path in the `config_chain` array of the `sway_config` struct and comparing it to the provided path parameter using the `strcmp` function and `same_filename(path, old_path)` checks for the indivisual file name. If the provided path or the file name is found in the array, the function returns true, indicating that the file has already been included. If the provided path is not found in the array, the function returns false, indicating that the file has not yet been included.
 
 ```c
 bool already_included(struct sway_config *config, const char *path) {
     for (int j = 0; j < config->config_chain->length; ++j) {
         char *old_path = config->config_chain->items[j];
-        if (strcmp(path, old_path) == 0 || strcmp(basename(path), basename(old_path)) == 0) {
+        if (strcmp(path, old_path) == 0 ||  same_filename(path, old_path)) {
             return true;
         }
     }
     return false;
+}
+
+char *extract_filename(const char *path) {
+    const char *last_sep = strrchr(path, '/');
+    if (last_sep != NULL) {
+        return (char *)(last_sep + 1);
+    }
+    return (char *)path;
+}
+
+// Checks if two paths have the same filename.
+bool same_filename(const char *path1, const char *path2) {
+    const char *filename1 = extract_filename(path1);
+    const char *filename2 = extract_filename(path2);
+    return (strcmp(filename1, filename2) == 0);
 }
 ```
 
