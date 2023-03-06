@@ -662,36 +662,32 @@ void load_include_configs(const char *path, struct sway_config *config,
 		size_t i;
 		bool first_dir = true;
 		for (i = 0; i < p.we_wordc; ++i) {
-			if (strcmp(w[i], "include_one") == 0) {
-				if (i + 1 < p.we_wordc) {
-					if (first_dir) {
-						load_include_config(w[i+1], parent_dir, config, swaynag);
-						first_dir = false;
-					} else {
-						// load only files not already included
-						DIR *dir = opendir(w[i+1]);
-						if (dir == NULL) {
-							sway_log(SWAY_ERROR, "Failed to open include_one directory");
-							continue;
-						}
-						struct dirent *ent;
-						while ((ent = readdir(dir)) != NULL) {
-							if (ent->d_type == DT_REG) {
-								char file_path[PATH_MAX];
-								snprintf(file_path, sizeof(file_path), "%s/%s", w[i+1], ent->d_name);
-								if (!already_included(config, file_path)) {
-									load_include_config(file_path, parent_dir, config, swaynag);
-								}
+			if (i + 1 < p.we_wordc) {
+				if (first_dir) {
+					load_include_config(w[i+1], parent_dir, config, swaynag);
+					first_dir = false;
+				} else {
+					// load only files not already included
+					DIR *dir = opendir(w[i+1]);
+					if (dir == NULL) {
+						sway_log(SWAY_ERROR, "Failed to open include_one directory");
+						continue;
+					}
+					struct dirent *ent;
+					while ((ent = readdir(dir)) != NULL) {
+						if (ent->d_type == DT_REG) {
+							char file_path[PATH_MAX];
+							snprintf(file_path, sizeof(file_path), "%s/%s", w[i+1], ent->d_name);
+							if (!already_included(config, file_path)) {
+								load_include_config(file_path, parent_dir, config, swaynag);
 							}
 						}
-						closedir(dir);
 					}
-					i++;
-				} else {
-					sway_log(SWAY_ERROR, "include_one missing argument");
+					closedir(dir);
 				}
-			} else if(strcmp(w[i], "include") == 0) {
-				load_include_config(w[i], parent_dir, config, swaynag);
+				i++;
+			} else {
+				sway_log(SWAY_ERROR, "include_one missing argument");
 			}
 		}
 		wordfree(&p);
