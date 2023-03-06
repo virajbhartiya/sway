@@ -76,5 +76,3 @@ if (strcmp(w[i], "include_one") == 0) {
 }
 
 ```
-
-All the changes have been made only in [`sway/config.c`](https://github.com/virajbhartiya/sway/blob/master/sway/config.c) file.
