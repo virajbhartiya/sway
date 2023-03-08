@@ -9,12 +9,13 @@ I've created a new file called `sway/commands/include_one.c` which handels the f
 struct cmd_results *cmd_include_one(int argc, char **argv) {
 	struct cmd_results *error = NULL;
 
-	if ((error = checkarg(argc, "include_one", EXPECTED_AT_LEAST, 1))) {
+	if ((error = checkarg(argc, "include_one", EXPECTED_AT_LEAST, 2))) {
 		return error;
 	}
 
-
-	load_include_configs(argv[0], config, &config->swaynag_config_errors);
+	const char **paths = (const char **) &argv[1];
+	size_t num_paths = (size_t) (argc - 1);
+	load_include_one_configs(paths, num_paths, config, &config->swaynag_config_errors);
 	return cmd_results_new(CMD_SUCCESS, NULL);
 }
 
@@ -49,38 +50,69 @@ bool same_filename(const char *path1, const char *path2) {
 }
 ```
 
-In the `load_include_configs()` function, the code iterates through each path in the array and checks if it is equal to "include_one". If it is, the function loads all files in the directory specified by the next path that has not already been included. If the path is not "include_one", the function loads the configuration file specified by the path and also preserves the previous functionality of using just "include",
+Created a new `load_include_one_configs()` function, the code iterates through each path in the array and checks if it is equal to "include_one". If it is, the function loads all files in the directory specified by the next path that has not already been included. If the path is not "include_one", the function loads the configuration file specified by the path and also preserves the previous functionality of using just "include",
 
 To keep track of which files have already been included in the configuration, the function uses a config struct pointer to check whether a file has already been loaded before.
 
 ```c
-if (strcmp(w[i], "include_one") == 0) {
-  if (i + 1 < p.we_wordc) {
-    if (first_dir) {
-      load_include_config(w[i+1], parent_dir, config, swaynag);
-      first_dir = false;
-    } else {
-      DIR *dir = opendir(w[i+1]);
-      if (dir == NULL) {
-          sway_log(SWAY_ERROR, "Failed to open include_one directory");
-          continue;
-      }
-      struct dirent *ent;
-      while ((ent = readdir(dir)) != NULL) {
-          if (ent->d_type == DT_REG) {
-              char file_path[PATH_MAX];
-              snprintf(file_path, sizeof(file_path), "%s/%s", w[i+1], ent->d_name);
-              if (!already_included(config, file_path)) {
-                  load_include_config(file_path, parent_dir, config, swaynag);
-              }
-          }
-      }
-      closedir(dir);
-    }
-    i++;
-  } else {
-      sway_log(SWAY_ERROR, "include_one missing argument");
-  }
+void load_include_one_configs(const char **paths, size_t num_paths, struct sway_config *config,
+		struct swaynag_instance *swaynag) {
+	char *wd = getcwd(NULL, 0);
+	char *parent_path = strdup(config->current_config_path);
+	const char *parent_dir = dirname(parent_path);
+
+	if (chdir(parent_dir) < 0) {
+		sway_log(SWAY_ERROR, "failed to change working directory");
+		goto cleanup;
+	}
+
+	for (size_t i = 0; i < num_paths; ++i) {
+		wordexp_t p;
+		if (wordexp(paths[i], &p, 0) == 0) {
+			char **w = p.we_wordv;
+			size_t j;
+			bool first_dir = true;
+			for (j = 0; j < p.we_wordc; ++j) {
+				if (j <= p.we_wordc) {
+					if (first_dir) {
+						load_include_config(w[j+1], parent_dir, config, swaynag);
+						first_dir = false;
+					} else {
+						// load only files not already included
+						DIR *dir = opendir(w[j+1]);
+						if (dir == NULL) {
+							sway_log(SWAY_ERROR, "Failed to open include_one directory");
+							continue;
+						}
+						struct dirent *ent;
+						while ((ent = readdir(dir)) != NULL) {
+							if (S_ISREG(ent->d_type)) {
+								char file_path[PATH_MAX];
+								snprintf(file_path, sizeof(file_path), "%s/%s", w[j+1], ent->d_name);
+								if (!already_included(config, file_path)) {
+									load_include_config(file_path, parent_dir, config, swaynag);
+								}
+							}
+						}
+						closedir(dir);
+					}
+					j++;
+				} else {
+					sway_log(SWAY_ERROR, "include_one missing argument");
+				}
+			}
+			wordfree(&p);
+		}
+	}
+
+	// Attempt to restore working directory before returning.
+	if (chdir(wd) < 0) {
+		sway_log(SWAY_ERROR, "failed to change working directory");
+	}
+cleanup:
+	free(parent_path);
+	free(wd);
 }
+
 
 ```

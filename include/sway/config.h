@@ -607,6 +607,11 @@ void load_include_configs(const char *path, struct sway_config *config,
 		struct swaynag_instance *swaynag);
 
 /**
+ * Loads an included_one config. Can only be used after load_main_config.
+ */
+void load_include_one_configs(const char **paths, size_t num_paths, struct sway_config *config,
+		struct swaynag_instance *swaynag);
+/**
  * Check if the file has alreaady been included in the previous file path
  */
 bool already_included(struct sway_config *config, const char *path);
@@ -614,12 +619,12 @@ bool already_included(struct sway_config *config, const char *path);
 /**
  * returns the file name
  */
-char *extract_filename(const char *path)
+char *extract_filename(const char *path);
 
 /**
  * checks if the file name is same
  */
-bool same_filename(const char *path1, const char *path2) {
+bool same_filename(const char *path1, const char *path2);
 
 
 /**

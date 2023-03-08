@@ -660,35 +660,8 @@ void load_include_configs(const char *path, struct sway_config *config,
 	if (wordexp(path, &p, 0) == 0) {
 		char **w = p.we_wordv;
 		size_t i;
-		bool first_dir = true;
 		for (i = 0; i < p.we_wordc; ++i) {
-			if (i + 1 < p.we_wordc) {
-				if (first_dir) {
-					load_include_config(w[i+1], parent_dir, config, swaynag);
-					first_dir = false;
-				} else {
-					// load only files not already included
-					DIR *dir = opendir(w[i+1]);
-					if (dir == NULL) {
-						sway_log(SWAY_ERROR, "Failed to open include_one directory");
-						continue;
-					}
-					struct dirent *ent;
-					while ((ent = readdir(dir)) != NULL) {
-						if (ent->d_type == DT_REG) {
-							char file_path[PATH_MAX];
-							snprintf(file_path, sizeof(file_path), "%s/%s", w[i+1], ent->d_name);
-							if (!already_included(config, file_path)) {
-								load_include_config(file_path, parent_dir, config, swaynag);
-							}
-						}
-					}
-					closedir(dir);
-				}
-				i++;
-			} else {
-				sway_log(SWAY_ERROR, "include_one missing argument");
-			}
+			load_include_config(w[i], parent_dir, config, swaynag);
 		}
 		wordfree(&p);
 	}
@@ -701,6 +674,67 @@ cleanup:
 	free(parent_path);
 	free(wd);
 }
+
+
+void load_include_one_configs(const char **paths, size_t num_paths, struct sway_config *config,
+		struct swaynag_instance *swaynag) {
+	char *wd = getcwd(NULL, 0);
+	char *parent_path = strdup(config->current_config_path);
+	const char *parent_dir = dirname(parent_path);
+
+	if (chdir(parent_dir) < 0) {
+		sway_log(SWAY_ERROR, "failed to change working directory");
+		goto cleanup;
+	}
+
+	for (size_t i = 0; i < num_paths; ++i) {
+		wordexp_t p;
+		if (wordexp(paths[i], &p, 0) == 0) {
+			char **w = p.we_wordv;
+			size_t j;
+			bool first_dir = true;
+			for (j = 0; j < p.we_wordc; ++j) {
+				if (j <= p.we_wordc) {
+					if (first_dir) {
+						load_include_config(w[j+1], parent_dir, config, swaynag);
+						first_dir = false;
+					} else {
+						// load only files not already included
+						DIR *dir = opendir(w[j+1]);
+						if (dir == NULL) {
+							sway_log(SWAY_ERROR, "Failed to open include_one directory");
+							continue;
+						}
+						struct dirent *ent;
+						while ((ent = readdir(dir)) != NULL) {
+							if (S_ISREG(ent->d_type)) {
+								char file_path[PATH_MAX];
+								snprintf(file_path, sizeof(file_path), "%s/%s", w[j+1], ent->d_name);
+								if (!already_included(config, file_path)) {
+									load_include_config(file_path, parent_dir, config, swaynag);
+								}
+							}
+						}
+						closedir(dir);
+					}
+					j++;
+				} else {
+					sway_log(SWAY_ERROR, "include_one missing argument");
+				}
+			}
+			wordfree(&p);
+		}
+	}
+
+	// Attempt to restore working directory before returning.
+	if (chdir(wd) < 0) {
+		sway_log(SWAY_ERROR, "failed to change working directory");
+	}
+cleanup:
+	free(parent_path);
+	free(wd);
+}
+
 
 bool already_included(struct sway_config *config, const char *path) {
     for (int j = 0; j < config->config_chain->length; ++j) {

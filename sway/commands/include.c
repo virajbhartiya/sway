@@ -3,8 +3,6 @@
 
 struct cmd_results *cmd_include(int argc, char **argv) {
 	struct cmd_results *error = NULL;
-	int expected_argc;
-	char *expected_arg;
 
 	if ((error = checkarg(argc, "include", EXPECTED_EQUAL_TO, 1))) {
 		return error;
