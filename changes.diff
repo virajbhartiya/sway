@@ -1,0 +1,205 @@
+diff --git a/./sway/include/sway/commands.h b/./swaynew/include/sway/commands.h
+index fc6ce22..86d0ebc 100644
+--- a/./sway/include/sway/commands.h
++++ b/./swaynew/include/sway/commands.h
+@@ -143,6 +143,7 @@ sway_cmd cmd_fullscreen;
+ sway_cmd cmd_gaps;
+ sway_cmd cmd_hide_edge_borders;
+ sway_cmd cmd_include;
++sway_cmd cmd_include_one;
+ sway_cmd cmd_inhibit_idle;
+ sway_cmd cmd_input;
+ sway_cmd cmd_seat;
+diff --git a/./sway/include/sway/config.h b/./swaynew/include/sway/config.h
+index 8415627..3438b8e 100644
+--- a/./sway/include/sway/config.h
++++ b/./swaynew/include/sway/config.h
+@@ -606,6 +606,27 @@ bool load_main_config(const char *path, bool is_active, bool validating);
+ void load_include_configs(const char *path, struct sway_config *config,
+ 		struct swaynag_instance *swaynag);
+ 
++/**
++ * Loads an included_one config. Can only be used after load_main_config.
++ */
++void load_include_one_configs(const char **paths, size_t num_paths, struct sway_config *config,
++		struct swaynag_instance *swaynag);
++/**
++ * Check if the file has alreaady been included in the previous file path
++ */
++bool already_included(struct sway_config *config, const char *path);
++
++/**
++ * returns the file name
++ */
++char *extract_filename(const char *path);
++
++/**
++ * checks if the file name is same
++ */
++bool same_filename(const char *path1, const char *path2);
++
++
+ /**
+  * Reads the config from the given FILE.
+  */
+diff --git a/./sway/sway/commands/include.c b/./swaynew/sway/commands/include.c
+index d4c14c3..37c4dab 100644
+--- a/./sway/sway/commands/include.c
++++ b/./swaynew/sway/commands/include.c
+@@ -3,12 +3,11 @@
+ 
+ struct cmd_results *cmd_include(int argc, char **argv) {
+ 	struct cmd_results *error = NULL;
++
+ 	if ((error = checkarg(argc, "include", EXPECTED_EQUAL_TO, 1))) {
+ 		return error;
+-	}
++	} 
+ 
+-	// We don't care if the included config(s) fails to load.
+ 	load_include_configs(argv[0], config, &config->swaynag_config_errors);
+-
+ 	return cmd_results_new(CMD_SUCCESS, NULL);
+ }
+diff --git a/./swaynew/sway/commands/include_one.c b/./swaynew/sway/commands/include_one.c
+new file mode 100644
+index 0000000..eb6df8d
+--- /dev/null
++++ b/./swaynew/sway/commands/include_one.c
+@@ -0,0 +1,15 @@
++#include "sway/commands.h"
++#include "sway/config.h"
++
++struct cmd_results *cmd_include_one(int argc, char **argv) {
++	struct cmd_results *error = NULL;
++
++	if ((error = checkarg(argc, "include_one", EXPECTED_AT_LEAST, 2))) {
++		return error;
++	}
++
++	const char **paths = (const char **) &argv[1];
++	size_t num_paths = (size_t) (argc - 1);
++	load_include_one_configs(paths, num_paths, config, &config->swaynag_config_errors);
++	return cmd_results_new(CMD_SUCCESS, NULL);
++}
+diff --git a/./sway/sway/commands.c b/./swaynew/sway/commands.c
+index 28e9d8d..9f80786 100644
+--- a/./sway/sway/commands.c
++++ b/./swaynew/sway/commands.c
+@@ -105,6 +105,7 @@ static const struct cmd_handler handlers[] = {
+ static const struct cmd_handler config_handlers[] = {
+ 	{ "default_orientation", cmd_default_orientation },
+ 	{ "include", cmd_include },
++	{ "include_one", cmd_include_one },
+ 	{ "swaybg_command", cmd_swaybg_command },
+ 	{ "swaynag_command", cmd_swaynag_command },
+ 	{ "workspace_layout", cmd_workspace_layout },
+diff --git a/./sway/sway/config.c b/./swaynew/sway/config.c
+index f5efa98..fcb4967 100644
+--- a/./sway/sway/config.c
++++ b/./swaynew/sway/config.c
+@@ -675,6 +675,92 @@ cleanup:
+ 	free(wd);
+ }
+ 
++
++void load_include_one_configs(const char **paths, size_t num_paths, struct sway_config *config,
++		struct swaynag_instance *swaynag) {
++	char *wd = getcwd(NULL, 0);
++	char *parent_path = strdup(config->current_config_path);
++	const char *parent_dir = dirname(parent_path);
++
++	if (chdir(parent_dir) < 0) {
++		sway_log(SWAY_ERROR, "failed to change working directory");
++		goto cleanup;
++	}
++
++	for (size_t i = 0; i < num_paths; ++i) {
++		wordexp_t p;
++		if (wordexp(paths[i], &p, 0) == 0) {
++			char **w = p.we_wordv;
++			size_t j;
++			bool first_dir = true;
++			for (j = 0; j < p.we_wordc; ++j) {
++				if (j <= p.we_wordc) {
++					if (first_dir) {
++						load_include_config(w[j+1], parent_dir, config, swaynag);
++						first_dir = false;
++					} else {
++						// load only files not already included
++						DIR *dir = opendir(w[j+1]);
++						if (dir == NULL) {
++							sway_log(SWAY_ERROR, "Failed to open include_one directory");
++							continue;
++						}
++						struct dirent *ent;
++						while ((ent = readdir(dir)) != NULL) {
++							if (S_ISREG(ent->d_type)) {
++								char file_path[PATH_MAX];
++								snprintf(file_path, sizeof(file_path), "%s/%s", w[j+1], ent->d_name);
++								if (!already_included(config, file_path)) {
++									load_include_config(file_path, parent_dir, config, swaynag);
++								}
++							}
++						}
++						closedir(dir);
++					}
++					j++;
++				} else {
++					sway_log(SWAY_ERROR, "include_one missing argument");
++				}
++			}
++			wordfree(&p);
++		}
++	}
++
++	// Attempt to restore working directory before returning.
++	if (chdir(wd) < 0) {
++		sway_log(SWAY_ERROR, "failed to change working directory");
++	}
++cleanup:
++	free(parent_path);
++	free(wd);
++}
++
++
++bool already_included(struct sway_config *config, const char *path) {
++    for (int j = 0; j < config->config_chain->length; ++j) {
++        char *old_path = config->config_chain->items[j];
++        if (strcmp(path, old_path) == 0 ||  same_filename(path, old_path)) {
++            return true;
++        }
++    }
++    return false;
++}
++
++char *extract_filename(const char *path) {
++    const char *last_sep = strrchr(path, '/');
++    if (last_sep != NULL) {
++        return (char *)(last_sep + 1);
++    }
++    return (char *)path;
++}
++
++// Checks if two paths have the same filename.
++bool same_filename(const char *path1, const char *path2) {
++    const char *filename1 = extract_filename(path1);
++    const char *filename2 = extract_filename(path2);
++    return (strcmp(filename1, filename2) == 0);
++}
++
+ void run_deferred_commands(void) {
+ 	if (!config->cmd_queue->length) {
+ 		return;
+diff --git a/./sway/sway/meson.build b/./swaynew/sway/meson.build
+index c6a2743..e7a6f6f 100644
+--- a/./sway/sway/meson.build
++++ b/./swaynew/sway/meson.build
+@@ -75,6 +75,7 @@ sway_sources = files(
+ 	'commands/max_render_time.c',
+ 	'commands/opacity.c',
+ 	'commands/include.c',
++	'commands/include_one.c',
+ 	'commands/input.c',
+ 	'commands/layout.c',
+ 	'commands/mode.c',
